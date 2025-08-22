@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+:root {
+  --btn-radius:16px;
+  --card-radius:24px;
+  --btn-color:#000;
+  --btn-bg:#fff;
+  --btn-hover:rgba(0,0,0,0.1);
+  --glass-bg: rgba(255,255,255,0.2);
+}
+
+body, html { margin:0; padding:0; font-family:"Inter",sans-serif; height:100%; }
+
+.scicalc-page {
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:20px;
+  background: linear-gradient(135deg,#ff7eb3,#7afcff,#9be15d,#ffd86b,#ff7eb3);
+  background-size:600% 600%;
+  animation: rainbowBG 12s ease infinite;
+  gap:20px;
+}
+
+@keyframes rainbowBG {
+  0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;}
+}
+
+.card-glass {
+  background: var(--glass-bg);
+  border-radius: var(--card-radius);
+  box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+  padding:20px;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:15px;
+  backdrop-filter: blur(15px);
+  min-width:300px;
+}
+
+.scicalc-display {
+  width:100%;
+  padding:16px;
+  font-size:1.5rem;
+  border-radius: var(--card-radius);
+  border:1px solid rgba(0,0,0,0.2);
+  text-align:right;
+  background:#fff;
+  color:#000;
+}
+
+.scicalc-buttons {
+  display:grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap:10px;
+}
+.scicalc-buttons button {
+  padding:16px 0;
+  font-size:1.1rem;
+  border:none;
+  border-radius: var(--btn-radius);
+  cursor:pointer;
+  color: var(--btn-color);
+  background: var(--btn-bg);
+  transition:0.2s;
+  font-weight:bold;
+}
+.scicalc-buttons button:hover { background: var(--btn-hover); }
+
+button[data-hint]:hover::after {
+  content: attr(data-hint);
+  position:absolute; top:-28px; left:50%; transform:translateX(-50%);
+  background: rgba(0,0,0,0.75); color:#fff; font-size:0.8rem;
+  padding:4px 6px; border-radius:6px; white-space:nowrap;
+}
+
+.history {
+  max-height:150px;
+  overflow-y:auto;
+  border-top:1px dashed rgba(0,0,0,0.2);
+  padding-top:10px;
+  font-size:1rem;
+  color:#000;
+}
+
+.canvas-pad {
+  background: #fff;
+  border:1px dashed rgba(0,0,0,0.2);
+  border-radius:16px;
+  width:100%;
+  min-height:300px;
+  position:relative;
+}
+
+canvas { width:100%; height:100%; border-radius:16px; cursor:crosshair; }
+
+.flex-row { display:flex; gap:20px; }
+.flex-col { flex:1; display:flex; flex-direction:column; gap:10px; }
+
+h3 { color:#000; text-align:center; }
+
+</style>
+
+<div class="scicalc-page">
+  <!-- Calculator Column -->
+  <div class="flex-col card-glass">
+    <h3>🌈 Calculator</h3>
+    <input type="text" id="calcDisplay" class="scicalc-display" readonly placeholder="0">
+
+    <div class="scicalc-buttons">
+      <!-- Row 1 -->
+      <button class="btn-clear" onclick="press('C')" data-hint="Clear all">C</button>
+      <button class="btn-operator" onclick="press('(')" data-hint="Open bracket">(</button>
+      <button class="btn-operator" onclick="press(')')" data-hint="Close bracket">)</button>
+      <button class="btn-operator" onclick="press('**')" data-hint="Power">^</button>
+      <button class="btn-operator" onclick="press('/')">÷</button>
+      <button class="btn-operator" onclick="press('sqrt(')" data-hint="Square root">√</button>
+
+      <!-- Row 2 -->
+      <button onclick="press('7')">7</button>
+      <button onclick="press('8')">8</button>
+      <button onclick="press('9')">9</button>
+      <button class="btn-operator" onclick="press('*')">×</button>
+      <button class="btn-operator" onclick="press('factorial(')" data-hint="Factorial">n!</button>
+      <button class="btn-operator" onclick="press('pi')" data-hint="Pi">π</button>
+
+      <!-- Row 3 -->
+      <button onclick="press('4')">4</button>
+      <button onclick="press('5')">5</button>
+      <button onclick="press('6')">6</button>
+      <button class="btn-operator" onclick="press('-')">−</button>
+      <button class="btn-operator" onclick="press('log(')">log</button>
+      <button class="btn-operator" onclick="press('ln(')">ln</button>
+
+      <!-- Row 4 -->
+      <button onclick="press('1')">1</button>
+      <button onclick="press('2')">2</button>
+      <button onclick="press('3')">3</button>
+      <button class="btn-operator" onclick="press('+')">+</button>
+      <button class="btn-operator" onclick="press('exp(')">exp</button>
+      <button class="btn-operator" onclick="press('abs(')">abs</button>
+
+      <!-- Row 5 -->
+      <button onclick="press('0')">0</button>
+      <button onclick="press('.')">.</button>
+      <button class="btn-equal" onclick="calculate()">=</button>
+      <button class="btn-operator" onclick="press('%')">%</button>
+      <button class="btn-operator" onclick="press('sin(')">sin</button>
+      <button class="btn-operator" onclick="press('cos(')">cos</button>
+
+      <!-- Row 6 -->
+      <button class="btn-operator" onclick="press('tan(')">tan</button>
+      <button class="btn-operator" onclick="press('asin(')">asin</button>
+      <button class="btn-operator" onclick="press('acos(')">acos</button>
+      <button class="btn-operator" onclick="press('atan(')">atan</button>
+      <button class="btn-operator" onclick="press('sinh(')">sinh</button>
+      <button class="btn-operator" onclick="press('cosh(')">cosh</button>
+    </div>
+
+    <div class="history" id="calcHistory">
+      <strong>Past Calculations:</strong>
+    </div>
+  </div>
+
+  <!-- Rough Work Column -->
+  <div class="flex-col card-glass">
+    <h3>📝 Rough Work</h3>
+    <div class="canvas-pad">
+      <canvas id="roughPad"></canvas>
+    </div>
+    <div class="history" id="roughHistory">
+      <strong>Past Notes:</strong>
+    </div>
+  </div>
+</div>
+
+<script>
+let expression=''; let history=[];
+let canvas=document.getElementById('roughPad'); let ctx=canvas.getContext('2d');
+canvas.width=canvas.offsetWidth; canvas.height=canvas.offsetHeight;
+let drawing=false;
+
+// Canvas rough work
+canvas.onmousedown=e=>{drawing=true; ctx.beginPath(); ctx.moveTo(e.offsetX,e.offsetY);}
+canvas.onmousemove=e=>{if(drawing){ctx.lineTo(e.offsetX,e.offsetY); ctx.strokeStyle="#000"; ctx.lineWidth=2; ctx.stroke();}}
+canvas.onmouseup=e=>{drawing=false;}
+canvas.onmouseleave=e=>{drawing=false;}
+
+// Calculator functions
+function press(val){ 
+  if(val==='C'){expression=''; updateDisplay(); return;}
+  if(val==='pi'){expression+=Math.PI; updateDisplay(); return;}
+  expression+=val; updateDisplay(); 
+}
+function updateDisplay(){ document.getElementById('calcDisplay').value=expression||'0'; }
+
+function factorial(n){ return n<=1?1:n*factorial(n-1); }
+
+function calculate(){
+  try{
+    let res = Function('"use strict"; return ('+expression.replace(/factorial\((\d+)\)/g,'factorial($1)')+')')();
+    addToHistory(expression+' = '+res);
+    expression=res.toString(); updateDisplay();
+  } catch(e){ alert('Invalid Expression'); }
+}
+
+function addToHistory(entry){
+  history.unshift(entry);
+  const histDiv=document.getElementById('calcHistory');
+  histDiv.innerHTML='<strong>Past Calculations:</strong>';
+  history.slice(0,15).forEach(h=>{ let div=document.createElement('div'); div.textContent=h; histDiv.appendChild(div); });
+}
+</script>
+
+{% endblock %}

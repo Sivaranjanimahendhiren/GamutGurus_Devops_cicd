@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+:root {
+  --card-radius:24px;
+  --btn-radius:16px;
+  --glass-bg: rgba(255,255,255,0.2);
+  --btn-bg:#fff;
+  --btn-hover:rgba(0,0,0,0.1);
+  --font-rainbow: linear-gradient(90deg, #ff7eb3,#7afcff,#9be15d,#ffd86b,#ff7eb3);
+}
+
+body, html { margin:0; padding:0; font-family:"Inter",sans-serif; }
+
+.dashboard-page {
+  min-height:100vh;
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+  background: linear-gradient(135deg,#ff7eb3,#7afcff,#9be15d,#ffd86b,#ff7eb3);
+  background-size:600% 600%;
+  animation: rainbowBG 12s ease infinite;
+}
+
+@keyframes rainbowBG { 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
+
+.card-glass {
+  background: var(--glass-bg);
+  border-radius: var(--card-radius);
+  box-shadow:0 15px 50px rgba(0,0,0,0.3);
+  padding:20px;
+  backdrop-filter: blur(15px);
+}
+
+.flex-row { display:flex; gap:20px; flex-wrap:wrap; }
+.flex-col { flex:1; display:flex; flex-direction:column; gap:15px; min-width:280px; }
+
+h3,h5 { color:#000; }
+
+.list-group-item { background:rgba(255,255,255,0.8); }
+
+.btn-custom { border:none; border-radius:var(--btn-radius); padding:10px 15px; cursor:pointer; background:var(--btn-bg); transition:0.2s; font-weight:bold; }
+.btn-custom:hover { background: var(--btn-hover); }
+
+.routine-history { max-height:150px; overflow-y:auto; }
+
+.monthly-planner, .yearly-planner { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+.monthly-planner div, .yearly-planner div { background:rgba(255,255,255,0.5); border-radius:12px; min-height:80px; position:relative; padding:5px; }
+.monthly-planner div textarea, .yearly-planner div textarea { width:100%; height:60px; border:none; background:none; resize:none; }
+.day-label { position:absolute; top:3px; left:5px; font-weight:bold; font-size:0.8rem; }
+
+.heatmap-square { width:20px; height:20px; border-radius:4px; margin:1px; display:inline-block; background:#ccc; }
+</style>
+
+<div class="dashboard-page">
+
+  <!-- Auto capture current date & time -->
+  <script>
+    const now = new Date();
+    const currentDate = now.toLocaleDateString();
+    const currentTime = now.toLocaleTimeString();
+    console.log("Current Date:", currentDate, "Time:", currentTime);
+  </script>
+
+  <!-- Add Routine -->
+  <div class="card-glass">
+    <h5>🗓 Add Routine</h5>
+    <form method="POST" action="{{ url_for('routine_add') }}" class="row g-2">
+      <div class="col-md-4">
+        <input class="form-control" name="title" placeholder="Routine title" required>
+      </div>
+      <div class="col-md-3">
+        <input class="form-control" type="time" name="time_of_day" required>
+      </div>
+      <div class="col-md-3">
+        <select class="form-select" name="days" multiple>
+          <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+          <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn-custom w-100 btn-success">Add</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Current Routines & Past Actions -->
+  <div class="flex-row">
+    <div class="flex-col card-glass">
+      <h5>📋 Your Routines</h5>
+      {% if routines %}
+        <ul class="list-group">
+          {% for r in routines %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ r.title }}</strong> - {{ r.time_of_day }} <br>
+                <small>{{ r.days | join(', ') }}</small>
+              </div>
+              <a href="{{ url_for('routine_delete', item_id=r.id) }}" class="btn btn-sm btn-outline-danger">Delete</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted">No routines yet.</p>
+      {% endif %}
+    </div>
+
+    <div class="flex-col card-glass">
+      <h5>🕒 Past Routine Actions</h5>
+      <div class="routine-history">
+        <ul>
+          {% for h in past_routines or [] %}
+            <li>{{ h }}</li>
+          {% else %}
+            <li class="text-muted">No past actions.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly Planner -->
+  <div class="card-glass">
+    <h5>📅 Monthly Planner</h5>
+    <div class="monthly-planner">
+      {% for day in month_days %}
+        <div>
+          <span class="day-label">{{ day.date }}</span>
+          <textarea placeholder="Notes...">{{ day.note or '' }}</textarea>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Yearly Planner & Auto Holidays -->
+  <div class="card-glass">
+    <h5>📆 Yearly Planner & Holidays</h5>
+    <div class="yearly-planner">
+      {% for month in yearly_months %}
+        <div>
+          <span class="day-label">{{ month.name }}</span>
+          <textarea placeholder="Plan/Notes">{{ month.note or '' }}</textarea>
+          <ul>
+            {% for h in month.holidays or [] %}
+              <li>{{ h.date }} - {{ h.name }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Heatmap Tracking -->
+  <div class="card-glass">
+    <h5>🔥 Routine Heatmap</h5>
+    <div>
+      {% for week in heatmap %}
+        <div>
+          {% for status in week %}
+            <span class="heatmap-square" style="background: {{ status.color }}"></span>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Notifications, Motivations & Water Breaks -->
+  <div class="flex-row">
+    <div class="flex-col card-glass">
+      <h5>⏰ Daily Alerts & Water Breaks</h5>
+      <ul>
+        {% for r in reminders or [] %}
+          <li>{{ r.time }} - {{ r.message }}</li>
+        {% else %}
+          <li class="text-muted">No reminders set.</li>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="flex-col card-glass">
+      <h5>💡 Motivations</h5>
+      <ul>
+        {% for m in motivations or [] %}
+          <li>{{ m }}</li>
+        {% else %}
+          <li class="text-muted">No motivations yet.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

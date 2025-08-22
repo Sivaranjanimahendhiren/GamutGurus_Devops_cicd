@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Taser Productivity App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Notifier for upcoming tasks
+    async function checkUpcoming() {
+        try {
+            let res = await fetch("/api/upcoming");
+            let data = await res.json();
+            if (data.upcoming.length > 0) {
+                let list = data.upcoming.map(t => `${t.title} @ ${t.due_at}`).join("\\n");
+                alert("Upcoming tasks in next 10 mins:\\n" + list);
+            }
+        } catch (err) {
+            console.error("Notifier error", err);
+        }
+    }
+    setInterval(checkUpcoming, 60000); // check every minute
+    </script>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="{{ url_for('dashboard') }}">Taser</a>
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('tasks_page') }}">Tasks</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('diary_page') }}">Diary</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('calculator_page') }}">Calculator</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('budget_page') }}">Budget</a></li>
+        <li class="nav-item"><a class="nav-link" href="{{ url_for('routine_page') }}">Routine</a></li
+            <li class="nav-item">
+                      <a class="nav-link" href="{{ url_for('draw_page') }}">🎨 Draw</a>
+                 </li>
+>
+      </ul>
+    </div>
+  </div>
+</nav>
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for cat, msg in messages %}
+          <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+</div>
+</body>
+</html>

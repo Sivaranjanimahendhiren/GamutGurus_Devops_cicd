@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", sans-serif;
+  height: 100%;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg,#ff7eb3,#7afcff,#9be15d,#ffd86b,#ff7eb3);
+  background-size: 600% 600%;
+  animation: rainbowBG 12s ease infinite;
+}
+
+@keyframes rainbowBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.login-card {
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(15px);
+  border-radius: 24px;
+  padding: 30px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.login-card h2 {
+  background: linear-gradient(90deg,#ff7eb3,#7afcff,#9be15d,#ffd86b,#ff7eb3);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  font-weight: bold;
+}
+
+input {
+  padding: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.2);
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(90deg,#ffd86b,#ff7eb3);
+  color: #000;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.flash-message {
+  padding: 8px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.flash-success { background: rgba(0,255,0,0.2); color: #006400; }
+.flash-warning { background: rgba(255,255,0,0.2); color: #7f6000; }
+.flash-danger { background: rgba(255,0,0,0.2); color: #8b0000; }
+</style>
+
+<div class="login-page">
+  <div class="login-card">
+    <h2>🔑 Login </h2>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash-message flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+      <input type="email" name="email" placeholder="📧 Email" required>
+      <input type="password" name="password" placeholder="🔒 Password" required>
+      <button type="submit">Login ➤</button>
+    </form>
+
+    <p style="text-align:center; font-size:0.85rem; color:#000;">
+      Demo Account:<br>
+      <b>demo@example.com</b> / <b>demo123</b>
+    </p>
+  </div>
+</div>
+
+{% endblock %}

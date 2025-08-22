@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --card-radius:14px;
+}
+.tasks-page {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  min-height:100vh;
+  background: linear-gradient(135deg, #ff7eb3, #7afcff, #9be15d, #ffd86b, #ff7eb3);
+  background-size: 600% 600%;
+  animation: rainbow 12s ease infinite;
+  color:#222;
+  padding:20px;
+}
+@keyframes rainbow {
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+
+.card-glass {
+  background: rgba(255,255,255,0.9);
+  border-radius: var(--card-radius);
+  box-shadow: 0 10px 30px rgba(14,30,37,0.12);
+  border: 1px solid rgba(255,255,255,0.6);
+  padding:16px;
+  margin-bottom:16px;
+}
+
+.hero { display:flex; gap:18px; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.stats { display:flex; gap:12px; }
+.stat { padding:12px 16px; border-radius:12px; background: rgba(255,255,255,0.6); min-width:110px; text-align:center; }
+.stat h4 { margin:0; font-size:1.1rem; }
+.stat p { margin:0; color:#666; font-size:.85rem; }
+
+/* Star quest style */
+.star-row {
+  display:flex;
+  gap:4px;
+  font-size:18px;
+}
+.star {
+  color:#ddd;
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+.star.completed { color: gold; transform: scale(1.3); }
+
+.table thead th { border-bottom: 0; }
+.task-row.done { opacity:0.7; text-decoration:line-through; }
+.badge-priority-low { background:#d1f7c4; color:#1a6b13; }
+.badge-priority-med { background:#fff2b3; color:#725700; }
+.badge-priority-high { background:#ffd1d1; color:#6b0b0b; }
+
+.stack-bar { height:10px; background: rgba(0,0,0,0.08); border-radius:6px; overflow:hidden; }
+.stack-bar > i { display:block; height:100%; }
+.stack-completed { background: linear-gradient(90deg,#7afcff,#7bd389); }
+.stack-pending { background: linear-gradient(90deg,#ffd86b,#ff7eb3); }
+
+.mini-chart { width:220px; height:120px; }
+</style>
+
+<div class="tasks-page">
+
+  <div class="hero">
+    <div>
+      <h2 style="margin:0">✨ My Tasks</h2>
+      <small class="text-muted">Track your quests & achievements.</small>
+    </div>
+
+    <div class="stats">
+      <div class="stat card-glass"><h4 id="totalCount">0</h4><p>Total</p></div>
+      <div class="stat card-glass"><h4 id="pendingCount">0</h4><p>Pending</p></div>
+      <div class="stat card-glass"><h4 id="doneCount">0</h4><p>Done</p></div>
+      <div class="stat card-glass"><h4 id="overdueCount">0</h4><p>Overdue</p></div>
+    </div>
+  </div>
+
+  <div class="card-glass mb-3">
+    <form id="addTaskForm" method="POST" action="{{ url_for('task_add') }}" class="d-flex gap-2 flex-wrap">
+      <input name="title" class="form-control" placeholder="New task title" required>
+      <select name="priority" class="form-select" style="width:130px">
+        <option>Low</option>
+        <option selected>Medium</option>
+        <option>High</option>
+      </select>
+      <input type="datetime-local" name="due_at" class="form-control" style="width:220px">
+      <button class="btn btn-primary" type="submit">Add</button>
+    </form>
+  </div>
+
+  <!-- Task Progress Bar -->
+  <div class="card-glass mb-3">
+    <h5>Task Progress</h5>
+    <div class="stack-bar mb-2">
+      <i id="stackCompleted" class="stack-completed" style="width:40%"></i>
+      <i id="stackPending" class="stack-pending" style="width:60%"></i>
+    </div>
+    <div class="star-row" id="questStars">
+      <!-- Stars injected by JS -->
+    </div>
+    <small class="text-muted">Gold stars = completed tasks</small>
+  </div>
+
+  <!-- Priority Chart -->
+  <div class="card-glass mb-3">
+    <canvas id="priorityChart" class="mini-chart"></canvas>
+  </div>
+
+  <!-- Tasks Table -->
+  <div class="card-glass p-3">
+    <h5>Your Tasks</h5>
+    <div class="table-responsive">
+      <table class="table align-middle" id="tasksTable">
+        <thead>
+          <tr><th>Title</th><th>Priority</th><th>Due</th><th>Status</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for t in tasks %}
+          <tr class="task-row {% if t.done %}done{% endif %}">
+            <td>{{ t.title }}</td>
+            <td>
+              {% if t.priority.lower() == 'low' %}<span class="badge badge-priority-low">Low</span>
+              {% elif t.priority.lower() == 'high' %}<span class="badge badge-priority-high">High</span>
+              {% else %}<span class="badge badge-priority-med">Medium</span>{% endif %}
+            </td>
+            <td>{{ t.due_at or '—' }}</td>
+            <td>{{ 'Done' if t.done else 'Pending' }}</td>
+            <td>
+              {% if not t.done %}<a class="btn btn-sm btn-success" href="{{ url_for('task_done', item_id=t.id) }}">Done</a>{% endif %}
+              <a class="btn btn-sm btn-outline-danger" href="{{ url_for('task_delete', item_id=t.id) }}">Delete</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const TASKS = {{ tasks|tojson | safe }};
+
+// Stats & progress
+function computeStats(tasks){
+  const total = tasks.length;
+  let done=0, pending=0, overdue=0;
+  let byPriority = {Low:0, Medium:0, High:0};
+  tasks.forEach(t=>{
+    if(t.done) done++; else pending++;
+    if(!t.done && t.due_at && new Date(t.due_at)<new Date()) overdue++;
+    const p = t.priority||'Medium';
+    if(p.toLowerCase()=='low') byPriority.Low++;
+    else if(p.toLowerCase()=='high') byPriority.High++;
+    else byPriority.Medium++;
+  });
+  return {total, done, pending, overdue, byPriority};
+}
+
+function renderStats(){
+  const s = computeStats(TASKS);
+  document.getElementById('totalCount').textContent = s.total;
+  document.getElementById('pendingCount').textContent = s.pending;
+  document.getElementById('doneCount').textContent = s.done;
+  document.getElementById('overdueCount').textContent = s.overdue;
+  document.getElementById('stackCompleted').style.width = (s.done/s.total*100)+'%';
+  document.getElementById('stackPending').style.width = (s.pending/s.total*100)+'%';
+
+  // Quest stars: one star per 5 tasks, filled for completed
+  const starRow = document.getElementById('questStars');
+  starRow.innerHTML='';
+  const starCount = Math.ceil(s.total/5);
+  const filledStars = Math.round(s.done/5);
+  for(let i=0;i<starCount;i++){
+    const star = document.createElement('span');
+    star.className='star'+(i<filledStars?' completed':'');
+    star.innerHTML='★';
+    starRow.appendChild(star);
+  }
+}
+
+// Priority chart
+let priorityChart=null;
+function renderPriorityChart(byPriority){
+  const ctx=document.getElementById('priorityChart').getContext('2d');
+  const data=[byPriority.Low, byPriority.Medium, byPriority.High];
+  if(priorityChart) priorityChart.destroy();
+  priorityChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:['Low','Medium','High'], datasets:[{data, backgroundColor:['#9be15d','#ffd86b','#ff7eb3']}]},
+    options:{plugins:{legend:{position:'bottom'}}, maintainAspectRatio:false}
+  });
+}
+
+// Init
+function initDashboard(){
+  const s = computeStats(TASKS);
+  renderStats();
+  renderPriorityChart(s.byPriority);
+}
+initDashboard();
+</script>
+
+{% endblock %}

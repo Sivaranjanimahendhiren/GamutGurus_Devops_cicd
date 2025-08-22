@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+body, html { margin:0; padding:0; font-family:"Inter",sans-serif; }
+.dashboard {
+  min-height:100vh;
+  background: linear-gradient(135deg,#ff7eb3,#7afcff,#9be15d,#ffd86b,#ff7eb3);
+  background-size:600% 600%;
+  animation: rainbowBG 12s ease infinite;
+  color:#fff;
+  padding:30px;
+}
+@keyframes rainbowBG {
+  0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;}
+}
+.dashboard h1 { text-align:center; font-size:2.8rem; margin-bottom:30px; text-shadow: 2px 2px rgba(0,0,0,0.3);}
+.cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px; }
+.card {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(12px);
+  border-radius:20px;
+  padding:25px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  transition: transform 0.3s;
+}
+.card:hover { transform: scale(1.05); }
+.card h3 { font-size:1.5rem; margin-bottom:15px; background: linear-gradient(90deg,#ffd86b,#ff7eb3,#7afcff,#9be15d); -webkit-background-clip:text; -webkit-text-fill-color:transparent;}
+.card p { font-size:1.2rem; }
+.quick-links { margin-top:40px; display:flex; flex-wrap:wrap; gap:15px; justify-content:center; }
+.quick-links a {
+  text-decoration:none;
+  color:#fff;
+  background: rgba(255,255,255,0.2);
+  padding:15px 25px;
+  border-radius:20px;
+  transition:0.3s;
+}
+.quick-links a:hover { background: rgba(255,255,255,0.4); transform:scale(1.05);}
+.upcoming-list { margin-top:15px; max-height:150px; overflow-y:auto; }
+.upcoming-list li { padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.2);}
+</style>
+
+<div class="dashboard">
+  <h1>🌈 Your Rainbow Dashboard 🌟</h1>
+
+  <div class="cards">
+    <div class="card">
+      <h3>📌 Tasks</h3>
+      <p>Total: {{ total_tasks }}</p>
+      <p>Pending: {{ pending_tasks }}</p>
+      <p>Done: {{ done_tasks }}</p>
+    </div>
+
+    <div class="card">
+      <h3>💰 Budget</h3>
+      <p>Income: ₹{{ income }}</p>
+      <p>Expense: ₹{{ expense }}</p>
+      <p>Net: ₹{{ net }}</p>
+    </div>
+
+    <div class="card">
+      <h3>⏰ Upcoming Tasks (Next Hour)</h3>
+      {% if upcoming %}
+      <ul class="upcoming-list">
+        {% for t in upcoming %}
+        <li>{{ t.title }} - {{ t.due_at | replace('T',' ') }}</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p>No upcoming tasks 🏖️</p>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <h3>⚡ Quick Actions</h3>
+      <p>Use the links below to navigate quickly:</p>
+      <div class="quick-links">
+        <a href="{{ url_for('tasks_page') }}">Tasks</a>
+        <a href="{{ url_for('diary_page') }}">Diary</a>
+        <a href="{{ url_for('budget_page') }}">Budget</a>
+        <a href="{{ url_for('routine_page') }}">Routine</a>
+        <a href="{{ url_for('calculator_page') }}">Calculator</a>
+        <a href="{{ url_for('draw_page') }}">Draw</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

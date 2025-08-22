@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+:root {
+  --btn-radius:16px;
+  --card-radius:24px;
+  --glass-bg: rgba(255,255,255,0.2);
+}
+
+body, html { margin:0; padding:0; font-family:"Inter",sans-serif; height:100%; }
+
+.draw-page {
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:20px;
+  background: linear-gradient(135deg,#ff7eb3,#7afcff,#9be15d,#ffd86b,#ff7eb3);
+  background-size:600% 600%;
+  animation: rainbowBG 12s ease infinite;
+  gap:20px;
+}
+
+@keyframes rainbowBG {
+  0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;}
+}
+
+.card-glass {
+  background: var(--glass-bg);
+  border-radius: var(--card-radius);
+  box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+  padding:20px;
+  display:flex;
+  flex-direction:column;
+  gap:15px;
+  backdrop-filter: blur(15px);
+}
+
+.flex-row { display:flex; gap:20px; }
+.flex-col { display:flex; flex-direction:column; gap:10px; }
+
+#paintCanvas {
+  width:100%;
+  height:600px;
+  border:2px solid rgba(0,0,0,0.2);
+  border-radius:16px;
+  cursor:crosshair;
+}
+
+h5{
+  background: linear-gradient(90deg, #ff7eb3,#7afcff,#9be15d,#ffd86b,#ff7eb3);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight:bold;
+}
+
+button, select, input { margin-bottom:10px; border-radius: var(--btn-radius); padding:6px; border:1px solid rgba(0,0,0,0.2); }
+</style>
+
+<div class="draw-page">
+
+  <!-- Toolbar -->
+  <div class="flex-col card-glass" style="min-width:220px;">
+    <h5>🎨 Rainbow E-Coloring Editor</h5>
+
+    <label>Tool:</label>
+    <select id="toolSelect">
+      <option value="pen">Pen</option>
+      <option value="eraser">Eraser</option>
+      <option value="fill">Fill</option>
+      <option value="line">Line</option>
+      <option value="rect">Rectangle</option>
+      <option value="circle">Circle</option>
+      <option value="text">Text</option>
+      <option value="move">Move/Select</option>
+    </select>
+
+    <label>Brush Size:</label>
+    <input type="range" id="brushSize" min="1" max="50" value="5">
+
+    <label>Color:</label>
+    <input type="color" id="colorPicker" value="#ff0000">
+
+    <button id="undoBtn">Undo</button>
+    <button id="redoBtn">Redo</button>
+    <button id="clearCanvas">Clear</button>
+    <button id="saveCanvas">Save</button>
+
+    <label>Load Outline Image:</label>
+    <select id="imageSelect">
+      <option value="">--None--</option>
+      <option value="flower">Flower</option>
+      <option value="butterfly">Butterfly</option>
+      <option value="house">House</option>
+      <option value="car">Car</option>
+    </select>
+    <button id="loadImage">Load</button>
+  </div>
+
+  <!-- Canvas -->
+  <div class="flex-col card-glass" style="flex:1;">
+    <canvas id="paintCanvas"></canvas>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById('paintCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = canvas.offsetWidth;
+canvas.height = canvas.offsetHeight;
+
+// Default canvas white
+ctx.fillStyle = "#fff";
+ctx.fillRect(0,0,canvas.width,canvas.height);
+
+let drawing=false, tool='pen', color='#ff0000', brushSize=5;
+let startX, startY;
+const undoStack = [];
+const redoStack = [];
+let shapes=[]; // Store loaded images/shapes
+let selectedShape=null;
+
+// Toolbar events
+document.getElementById('toolSelect').addEventListener('change', e=>tool=e.target.value);
+document.getElementById('colorPicker').addEventListener('change', e=>color=e.target.value);
+document.getElementById('brushSize').addEventListener('input', e=>brushSize=e.target.value);
+
+// Undo / Redo
+document.getElementById('undoBtn').addEventListener('click', ()=>{
+  if(undoStack.length){
+    redoStack.push(ctx.getImageData(0,0,canvas.width,canvas.height));
+    const imgData = undoStack.pop();
+    ctx.putImageData(imgData,0,0);
+  }
+});
+document.getElementById('redoBtn').addEventListener('click', ()=>{
+  if(redoStack.length){
+    undoStack.push(ctx.getImageData(0,0,canvas.width,canvas.height));
+    const imgData = redoStack.pop();
+    ctx.putImageData(imgData,0,0);
+  }
+});
+
+// Save history
+function saveHistory(){ undoStack.push(ctx.getImageData(0,0,canvas.width,canvas.height)); redoStack.length=0; }
+
+// Canvas drawing events
+canvas.addEventListener('mousedown', e=>{
+  startX=e.offsetX; startY=e.offsetY;
+  if(tool==='pen'||tool==='eraser'){ drawing=true; ctx.beginPath(); ctx.moveTo(startX,startY); saveHistory(); }
+  else if(tool==='move'){ selectShape(e.offsetX,e.offsetY); }
+});
+canvas.addEventListener('mouseup', e=>{
+  if(tool==='pen'||tool==='eraser'){ drawing=false; }
+  else if(['line','rect','circle'].includes(tool)){ drawShape(e.offsetX,e.offsetY); saveHistory(); }
+});
+canvas.addEventListener('mousemove', draw);
+
+// Draw shapes
+function draw(e){
+  if(tool==='pen' && drawing){
+    ctx.lineWidth=brushSize; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.strokeStyle=color; ctx.lineTo(e.offsetX,e.offsetY); ctx.stroke();
+  } else if(tool==='eraser' && drawing){
+    ctx.lineWidth=brushSize; ctx.strokeStyle='#fff'; ctx.lineTo(e.offsetX,e.offsetY); ctx.stroke();
+  } else if(tool==='move' && selectedShape && selectedShape.dragging){
+    const dx = e.offsetX - selectedShape.offsetX;
+    const dy = e.offsetY - selectedShape.offsetY;
+    selectedShape.x += dx;
+    selectedShape.y += dy;
+    selectedShape.offsetX = e.offsetX;
+    selectedShape.offsetY = e.offsetY;
+    redrawCanvas();
+  }
+}
+
+function drawShape(x2,y2){
+  ctx.strokeStyle=color; ctx.lineWidth=brushSize;
+  if(tool==='line'){ ctx.beginPath(); ctx.moveTo(startX,startY); ctx.lineTo(x2,y2); ctx.stroke(); }
+  else if(tool==='rect'){ ctx.strokeRect(startX,startY,x2-startX,y2-startY); }
+  else if(tool==='circle'){ ctx.beginPath(); let r=Math.hypot(x2-startX,y2-startY); ctx.arc(startX,startY,r,0,Math.PI*2); ctx.stroke(); }
+}
+
+// Undo/Redo Clear/Save
+document.getElementById('clearCanvas').addEventListener('click', ()=>{ ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height); shapes=[]; saveHistory(); });
+document.getElementById('saveCanvas').addEventListener('click', ()=>{
+  const link=document.createElement('a');
+  link.download='my_art.png';
+  link.href=canvas.toDataURL();
+  link.click();
+});
+
+// Load Outline Image as a movable shape
+document.getElementById('loadImage').addEventListener('click', ()=>{
+  const sel=document.getElementById('imageSelect').value;
+  if(!sel) return;
+  const img=new Image();
+  img.crossOrigin="anonymous";
+
+  // Mapping to URLs
+  const urls={
+    'flower':'https://i.ibb.co/3zFQz1h/flower-outline.png',
+    'butterfly':'https://i.ibb.co/3tJgVfG/butterfly-outline.png',
+    'house':'https://i.ibb.co/dB9zXwQ/house-outline.png',
+    'car':'https://i.ibb.co/NFZr7PJ/car-outline.png'
+  };
+  img.src = urls[sel];
+
+  img.onload = ()=>{
+    const shape={img:img, x:50, y:50, width:300, height:300, dragging:false, offsetX:0, offsetY:0};
+    shapes.push(shape);
+    redrawCanvas();
+    saveHistory();
+  };
+});
+
+// Redraw all shapes
+function redrawCanvas(){
+  ctx.fillStyle="#fff";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  shapes.forEach(s=>{
+    ctx.drawImage(s.img,s.x,s.y,s.width,s.height);
+  });
+}
+
+// Shape selection for move tool
+function selectShape(x,y){
+  for(let i=shapes.length-1;i>=0;i--){
+    const s = shapes[i];
+    if(x>s.x && x<s.x+s.width && y>s.y && y<s.y+s.height){
+      selectedShape=s; s.dragging=true; s.offsetX=x; s.offsetY=y;
+      canvas.addEventListener('mouseup', stopDrag);
+      break;
+    }
+  }
+}
+
+function stopDrag(){ if(selectedShape) selectedShape.dragging=false; selectedShape=null; canvas.removeEventListener('mouseup',stopDrag); }
+</script>
+
+{% endblock %}

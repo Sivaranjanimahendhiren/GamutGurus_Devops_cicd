@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block content %}
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Dancing+Script&family=Pacifico&family=Lobster&display=swap" rel="stylesheet">
+
+<style>
+:root { --card-radius:14px; }
+
+.diary-page-container {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  min-height:100vh;
+  background: linear-gradient(135deg,#ff7eb3,#7afcff,#9be15d,#ffd86b,#ff7eb3);
+  background-size:600% 600%;
+  animation: rainbowBG 12s ease infinite;
+  padding:20px;
+  color:#222;
+}
+@keyframes rainbowBG {
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+
+.card-glass {
+  background: rgba(255,255,255,0.9);
+  border-radius: var(--card-radius);
+  box-shadow: 0 10px 30px rgba(14,30,37,0.12);
+  border: 1px solid rgba(255,255,255,0.6);
+  padding:16px;
+  margin-bottom:16px;
+}
+
+.hero { display:flex; gap:18px; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.stats { display:flex; gap:12px; flex-wrap:wrap; }
+.stat { padding:12px 16px; border-radius:12px; background: rgba(255,255,255,0.6); min-width:110px; text-align:center; }
+.stat h4 { margin:0; font-size:1.1rem; }
+.stat p { margin:0; color:#666; font-size:.85rem; }
+
+/* Stars for diary entries (like achievements) */
+.star-row { display:flex; gap:4px; font-size:18px; margin-bottom:10px; }
+.star { color:#ddd; transition: transform 0.3s ease, color 0.3s ease; }
+.star.completed { color: gold; transform: scale(1.3); }
+
+textarea, input { font-family: inherit; }
+
+/* Sidebar */
+#toolSidebar {
+  position: fixed;
+  left: -260px;
+  top: 60px;
+  width: 250px;
+  height: calc(100% - 60px);
+  background: white;
+  border-right: 3px solid #ccc;
+  transition: left 0.3s ease;
+  padding: 15px;
+  overflow-y: auto;
+  z-index: 9999;
+}
+#toolSidebar.open { left:0; }
+#sidebarToggle {
+  position: fixed;
+  left:10px;
+  top:70px;
+  z-index:10000;
+  background:#fff;
+  border:none;
+  padding:8px 12px;
+  cursor:pointer;
+  border-radius:8px;
+  font-size:1.2rem;
+}
+
+.diary-page {
+  background: #fff url('https://www.transparenttextures.com/patterns/lined-paper.png') repeat;
+  padding: 30px;
+  border-radius: var(--card-radius);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  min-height:500px;
+}
+
+.diary-image {
+  max-width:100%;
+  margin:10px 0;
+  border-radius:10px;
+  box-shadow:0px 4px 10px rgba(0,0,0,0.2);
+}
+</style>
+
+<div class="diary-page-container">
+
+  <!-- Hero Stats -->
+  <div class="hero">
+    <div>
+      <h2 style="margin:0">📖 My Diary</h2>
+      <small class="text-muted">Track your thoughts & achievements</small>
+    </div>
+    <div class="stats">
+      <div class="stat card-glass"><h4 id="totalEntries">0</h4><p>Total Entries</p></div>
+      <div class="stat card-glass"><h4 id="todayEntries">0</h4><p>Today</p></div>
+      <div class="stat card-glass"><h4 id="emojiCount">0</h4><p>Emojis</p></div>
+    </div>
+  </div>
+
+  <!-- Add Diary Entry -->
+  <div class="card-glass">
+    <form method="POST" action="{{ url_for('diary_add') }}" enctype="multipart/form-data">
+      <input id="titleInput" class="form-control mb-2" name="title" placeholder="Diary Title">
+      <textarea id="contentArea" class="form-control mb-2" name="content" rows="10" placeholder="Start writing here..."></textarea>
+
+      <div class="mb-2">
+        <label>Font Style</label>
+        <select id="fontSelect" class="form-select" onchange="changeFont(this.value)">
+          <option value="'Dancing Script', cursive">Dancing Script</option>
+          <option value="'Pacifico', cursive">Pacifico</option>
+          <option value="'Lobster', cursive">Lobster</option>
+          <option value="'Arial', sans-serif">Arial</option>
+        </select>
+      </div>
+
+      <div class="mb-2">
+        <label>Emojis</label><br>
+        <button type="button" onclick="addEmoji('😊')">😊</button>
+        <button type="button" onclick="addEmoji('❤️')">❤️</button>
+        <button type="button" onclick="addEmoji('🌟')">🌟</button>
+        <button type="button" onclick="addEmoji('✨')">✨</button>
+      </div>
+
+      <div class="mb-2">
+        <label>Attach File</label>
+        <input type="file" id="fileUpload" class="form-control" name="attachment" accept="image/*,audio/*,video/*">
+      </div>
+
+      <input type="hidden" name="font_style" id="fontStyleInput">
+      <button class="btn btn-primary" type="submit">💾 Save Entry</button>
+    </form>
+  </div>
+
+  <!-- Star Achievements -->
+  <div class="card-glass">
+    <h5>🌟 Entry Achievements</h5>
+    <div class="star-row" id="achievementStars"></div>
+  </div>
+
+  <!-- Past Entries -->
+  {% if entries %}
+  <div class="card-glass">
+    <h5>📚 Past Records</h5>
+
+    {% set grouped_entries = {} %}
+    {% for e in entries %}
+      {% set date_str = e.created_at.strftime('%Y-%m-%d') if e.created_at.__class__.__name__ == 'datetime' else e.created_at[:10] %}
+      {% if grouped_entries.update({date_str: (grouped_entries.get(date_str, []) + [e])}) %}{% endif %}
+    {% endfor %}
+
+    <ul class="nav nav-tabs mt-3" role="tablist">
+      {% for date_str in grouped_entries.keys() %}
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if loop.first %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#day-{{ loop.index }}" type="button" role="tab">
+            {{ date_str }}
+          </button>
+        </li>
+      {% endfor %}
+    </ul>
+
+    <div class="tab-content p-3 border border-top-0">
+      {% for date_str, items in grouped_entries.items() %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="day-{{ loop.index }}" role="tabpanel">
+          {% for e in items %}
+            <div class="border-bottom mb-2 pb-2">
+              <h6>{{ e.title }}</h6>
+              {% if e.created_at %}
+                {% if e.created_at.__class__.__name__ == 'datetime' %}
+                  <small>{{ e.created_at.strftime('%A, %d %B %Y') }}</small>
+                {% else %}
+                  <small>{{ e.created_at[:10] }}</small>
+                {% endif %}
+              {% endif %}
+              <p>{{ e.content }}</p>
+              {% if e.attachment %}
+                <img src="{{ url_for('uploaded_file', filename=e.attachment) }}" class="diary-image">
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  // Font change
+  function changeFont(font) {
+    document.getElementById("contentArea").style.fontFamily = font;
+    document.getElementById("fontStyleInput").value = font;
+  }
+
+  // Emoji insert
+  function addEmoji(emoji) {
+    let textarea = document.getElementById("contentArea");
+    textarea.value += emoji;
+  }
+
+  // Compute achievements stars
+  const entries = {{ entries|tojson|safe }};
+  function renderStars() {
+    const starRow = document.getElementById("achievementStars");
+    starRow.innerHTML='';
+    const totalStars = Math.ceil(entries.length/3); // 1 star per 3 entries
+    const filledStars = entries.length;
+    for(let i=0;i<totalStars;i++){
+      const star = document.createElement('span');
+      star.className='star'+(i<filledStars?' completed':'');
+      star.innerHTML='★';
+      starRow.appendChild(star);
+    }
+  }
+  renderStars();
+</script>
+
+{% endblock %}
