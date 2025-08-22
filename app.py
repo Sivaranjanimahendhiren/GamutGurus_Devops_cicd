@@ -8,9 +8,11 @@ import os
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 # ---------- App Setup ----------
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
+
 
 # ---------- Data ----------
 DATA_FILE = "data.json"
@@ -42,7 +44,6 @@ def save_data():
 def load_data():
     """Load data from JSON file if exists, else start fresh."""
     global _id_counter
-
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, encoding="utf-8") as f:
             data = json.load(f)
@@ -67,6 +68,7 @@ def load_data():
 # Load data at startup
 load_data()
 
+
 # ---------- Users ----------
 users = {"demo@example.com": generate_password_hash("demo123")}
 
@@ -79,7 +81,6 @@ def login_required(f):
             flash("Please login first 🔐", "warning")
             return redirect(url_for("login_page"))
         return f(*args, **kwargs)
-
     return wrapped
 
 
@@ -99,7 +100,7 @@ _ALLOWED_NODES = {
     ast.Expression,
     ast.BinOp,
     ast.UnaryOp,
-    ast.Num,
+    ast.Constant,
     ast.Load,
     ast.Add,
     ast.Sub,
@@ -110,7 +111,6 @@ _ALLOWED_NODES = {
     ast.Pow,
     ast.USub,
     ast.UAdd,
-    ast.Constant,
 }
 _ALLOWED_OPS = (
     ast.Add,
@@ -132,8 +132,6 @@ def _eval_node(node):
         if isinstance(node.value, (int, float)):
             return node.value
         raise ValueError("Only numbers allowed.")
-    if isinstance(node, ast.Num):
-        return node.n
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, _ALLOWED_OPS):
         return _apply_unary(node.op, _eval_node(node.operand))
     if isinstance(node, ast.BinOp) and isinstance(node.op, _ALLOWED_OPS):
@@ -282,14 +280,12 @@ def task_done(item_id):
 @app.route("/tasks/delete/<int:item_id>")
 @login_required
 def task_delete(item_id):
-    global tasks
-    tasks = [t for t in tasks if t["id"] != item_id]
+    tasks[:] = [t for t in tasks if t["id"] != item_id]
     save_data()
     flash("Task deleted.", "danger")
     return redirect(url_for("tasks_page"))
 
 
-# ---------- Diary ----------
 @app.route("/diary")
 @login_required
 def diary_page():
@@ -321,14 +317,12 @@ def diary_add():
 @app.route("/diary/delete/<int:item_id>")
 @login_required
 def diary_delete(item_id):
-    global diary_entries
-    diary_entries = [d for d in diary_entries if d["id"] != item_id]
+    diary_entries[:] = [d for d in diary_entries if d["id"] != item_id]
     save_data()
     flash("Diary entry deleted.", "danger")
     return redirect(url_for("diary_page"))
 
 
-# ---------- Calculator ----------
 @app.route("/calculator", methods=["GET", "POST"])
 @login_required
 def calculator_page():
@@ -344,7 +338,6 @@ def calculator_page():
     return render_template("calculator.html", result=result, expr=expr)
 
 
-# ---------- Budget ----------
 @app.route("/budget")
 @login_required
 def budget_page():
@@ -397,14 +390,12 @@ def budget_add():
 @app.route("/budget/delete/<int:item_id>")
 @login_required
 def budget_delete(item_id):
-    global budget_items
-    budget_items = [b for b in budget_items if b["id"] != item_id]
+    budget_items[:] = [b for b in budget_items if b["id"] != item_id]
     save_data()
     flash("Budget item deleted.", "danger")
     return redirect(url_for("budget_page"))
 
 
-# ---------- Routine ----------
 @app.route("/routine")
 @login_required
 def routine_page():
@@ -436,21 +427,18 @@ def routine_add():
 @app.route("/routine/delete/<int:item_id>")
 @login_required
 def routine_delete(item_id):
-    global routines
-    routines = [r for r in routines if r["id"] != item_id]
+    routines[:] = [r for r in routines if r["id"] != item_id]
     save_data()
     flash("Routine deleted.", "danger")
     return redirect(url_for("routine_page"))
 
 
-# ---------- Drawing ----------
 @app.route("/draw")
 @login_required
 def draw_page():
     return render_template("draw.html")
 
 
-# ---------- Notifier API ----------
 @app.route("/api/upcoming")
 @login_required
 def api_upcoming():

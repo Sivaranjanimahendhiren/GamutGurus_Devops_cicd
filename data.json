@@ -1,14 +1,28 @@
 {
   "tasks": [
     {
-      "id": 6,
+      "id": 7,
+      "title": "Delete Me",
+      "priority": "Low",
+      "due_at": null,
+      "done": false
+    },
+    {
+      "id": 8,
+      "title": "Test Task",
+      "priority": "High",
+      "due_at": null,
+      "done": false
+    },
+    {
+      "id": 9,
       "title": "Complete Me",
       "priority": "Medium",
       "due_at": null,
       "done": false
     },
     {
-      "id": 7,
+      "id": 10,
       "title": "Delete Me",
       "priority": "Low",
       "due_at": null,
