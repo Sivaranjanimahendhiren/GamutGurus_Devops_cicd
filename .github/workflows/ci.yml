@@ -11,8 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Checkout code
+      # Step 1: Checkout repo into default path
       - uses: actions/checkout@v4
+        with:
+          # Avoid nested folder
+          path: .
 
       # Step 2: Set up Python
       - uses: actions/setup-python@v5
