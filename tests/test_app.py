@@ -1,6 +1,7 @@
 import pytest
 from app import app
 
+
 @pytest.fixture()
 def client():
     app.testing = True
@@ -8,77 +9,114 @@ def client():
         yield c
 
 
-def test_root(client):
-    """Test the root endpoint (/)"""
+def test_login_page(client):
+    """Test the login page loads correctly."""
+    r = client.get("/login")
+    assert r.status_code == 200
+    assert b"Login" in r.data  # Check HTML contains 'Login'
+
+
+def test_dashboard_requires_login(client):
+    """Accessing dashboard without login redirects to login."""
     r = client.get("/")
+    assert r.status_code == 302  # redirect
+    assert "/login" in r.headers["Location"]
+
+
+def test_login_logout_flow(client):
+    """Test logging in and logging out."""
+    # Login with demo user
+    r = client.post(
+        "/login",
+        data={"email": "demo@example.com", "password": "demo123"},
+        follow_redirects=True,
+    )
     assert r.status_code == 200
-    data = r.get_json()
-    assert "message" in data
-    # Adjust according to your root message
-    assert data["message"].startswith("Welcome") or "To-Do" in data["message"]
+    assert b"Welcome" in r.data
 
-
-def test_status(client):
-    """Test the /status endpoint"""
-    r = client.get("/status")
+    # Logout
+    r = client.get("/logout", follow_redirects=True)
     assert r.status_code == 200
-    data = r.get_json()
-    assert data.get("status") == "ok"
-    assert "uptime" in data  # If you added uptime info
-    assert "tasks_count" in data  # If you added count of todos
+    assert b"Logged out" in r.data
 
 
-def test_health(client):
-    """Test the /healthz endpoint"""
-    r = client.get("/healthz")
+def test_add_task(client):
+    """Test adding a task."""
+    # Login first
+    client.post(
+        "/login",
+        data={"email": "demo@example.com", "password": "demo123"},
+        follow_redirects=True,
+    )
+
+    r = client.post(
+        "/tasks/add",
+        data={"title": "Test Task", "priority": "High"},
+        follow_redirects=True,
+    )
     assert r.status_code == 200
-    assert r.data == b"ok"
+    assert b"Task added" in r.data
+    assert b"Test Task" in r.data
 
 
-def test_create_task(client):
-    """Test creating a new task"""
-    r = client.post("/tasks", json={"title": "Test Task"})
-    assert r.status_code == 201
-    data = r.get_json()
-    assert "id" in data
-    assert data["title"] == "Test Task"
-    assert data["completed"] is False
+def test_mark_task_done(client):
+    """Test marking a task as done."""
+    # Login first
+    client.post(
+        "/login",
+        data={"email": "demo@example.com", "password": "demo123"},
+        follow_redirects=True,
+    )
 
+    # Add a task
+    r = client.post(
+        "/tasks/add",
+        data={"title": "Complete Me", "priority": "Medium"},
+        follow_redirects=True,
+    )
+    assert r.status_code == 200
 
-def test_get_tasks(client):
-    """Test fetching all tasks"""
-    # First create one
-    client.post("/tasks", json={"title": "Another Task"})
+    # Find task ID from the tasks page
     r = client.get("/tasks")
+    html = r.data.decode()
+    import re
+
+    match = re.search(r"/tasks/done/(\d+)", html)
+    assert match
+    task_id = match.group(1)
+
+    # Mark done
+    r = client.get(f"/tasks/done/{task_id}", follow_redirects=True)
     assert r.status_code == 200
-    data = r.get_json()
-    assert isinstance(data, list)
-    assert any(task["title"] == "Another Task" for task in data)
-
-
-def test_update_task(client):
-    """Test updating a task"""
-    # Create
-    create_res = client.post("/tasks", json={"title": "Update Me"})
-    task_id = create_res.get_json()["id"]
-
-    # Update
-    r = client.put(f"/tasks/{task_id}", json={"completed": True})
-    assert r.status_code == 200
-    updated = r.get_json()
-    assert updated["completed"] is True
+    assert b"Marked done" in r.data
 
 
 def test_delete_task(client):
-    """Test deleting a task"""
-    # Create
-    create_res = client.post("/tasks", json={"title": "Delete Me"})
-    task_id = create_res.get_json()["id"]
+    """Test deleting a task."""
+    # Login first
+    client.post(
+        "/login",
+        data={"email": "demo@example.com", "password": "demo123"},
+        follow_redirects=True,
+    )
 
-    # Delete
-    r = client.delete(f"/tasks/{task_id}")
-    assert r.status_code == 204
+    # Add a task
+    client.post(
+        "/tasks/add",
+        data={"title": "Delete Me", "priority": "Low"},
+        follow_redirects=True,
+    )
 
-    # Ensure gone
-    get_res = client.get("/tasks")
-    assert all(task["id"] != task_id for task in get_res.get_json())
+    # Get task ID
+    r = client.get("/tasks")
+    html = r.data.decode()
+    import re
+
+    match = re.search(r"/tasks/delete/(\d+)", html)
+    assert match
+    task_id = match.group(1)
+
+    # Delete task
+    r = client.get(f"/tasks/delete/{task_id}", follow_redirects=True)
+    assert r.status_code == 200
+    assert b"Task deleted" in r.data

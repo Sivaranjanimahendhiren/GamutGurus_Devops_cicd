@@ -10,8 +10,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 # ---------- App Setup ----------
 app = Flask(__name__, template_folder="templates", static_folder="static")
-
-# Use env var for secret key (fallback to default for local dev)
 app.secret_key = os.environ.get("SECRET_KEY", "supersecretkey")
 
 # ---------- Data ----------
@@ -43,7 +41,8 @@ def save_data():
 
 def load_data():
     """Load data from JSON file if exists, else start fresh."""
-    global tasks, diary_entries, budget_items, routines, _id_counter
+    global _id_counter
+
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, encoding="utf-8") as f:
             data = json.load(f)
@@ -62,16 +61,14 @@ def load_data():
         start_id = max(all_ids, default=0) + 1
         _id_counter = itertools.count(start_id)
     else:
-        save_data()  # ensure file exists
+        save_data()
 
 
 # Load data at startup
 load_data()
 
-# ---------- Users (demo only, replace with DB later) ----------
-users = {
-    "demo@example.com": generate_password_hash("demo123")
-}
+# ---------- Users ----------
+users = {"demo@example.com": generate_password_hash("demo123")}
 
 
 # ---------- Auth Helpers ----------
@@ -203,9 +200,8 @@ def login_page():
             session["user_email"] = email
             flash(f"Welcome! 🎉 {email}", "success")
             return redirect(url_for("dashboard"))
-        else:
-            flash("Invalid email or password ❌", "danger")
-            return redirect(url_for("login_page"))
+        flash("Invalid email or password ❌", "danger")
+        return redirect(url_for("login_page"))
 
     return render_template("login.html")
 
@@ -224,13 +220,10 @@ def dashboard():
     total_tasks = len(tasks)
     pending_tasks = sum(1 for t in tasks if not t["done"])
     done_tasks = total_tasks - pending_tasks
-
     income = sum(b["amount"] for b in budget_items if b["type"] == "income")
     expense = sum(b["amount"] for b in budget_items if b["type"] == "expense")
     net = income - expense
-
     upcoming = upcoming_tasks_within(60)
-
     return render_template(
         "index.html",
         total_tasks=total_tasks,
@@ -256,11 +249,9 @@ def task_add():
     title = request.form.get("title", "").strip()
     priority = request.form.get("priority", "Medium")
     due_raw = request.form.get("due_at")
-
     if not title:
         flash("Task title is required.", "warning")
         return redirect(url_for("tasks_page"))
-
     due_at = parse_datetime_local(due_raw)
     tasks.append(
         {
@@ -311,11 +302,9 @@ def diary_page():
 def diary_add():
     title = request.form.get("title", "").strip()
     content = request.form.get("content", "").strip()
-
     if not title and not content:
         flash("Write something for your diary entry.", "warning")
         return redirect(url_for("diary_page"))
-
     diary_entries.append(
         {
             "id": next(_id_counter),
@@ -364,7 +353,6 @@ def budget_page():
     income_total = sum(b["amount"] for b in income_items)
     expense_total = sum(b["amount"] for b in expense_items)
     net = income_total - expense_total
-
     return render_template(
         "budget.html",
         income_items=income_items,
@@ -381,21 +369,17 @@ def budget_add():
     kind = request.form.get("type")
     label = request.form.get("label", "").strip()
     amount_raw = request.form.get("amount", "0").strip()
-
     try:
         amount = float(amount_raw)
     except ValueError:
         flash("Amount must be a number.", "warning")
         return redirect(url_for("budget_page"))
-
     if kind not in ("income", "expense"):
         flash("Select income or expense.", "warning")
         return redirect(url_for("budget_page"))
-
     if not label:
         flash("Label is required.", "warning")
         return redirect(url_for("budget_page"))
-
     budget_items.append(
         {
             "id": next(_id_counter),
@@ -433,11 +417,9 @@ def routine_add():
     title = request.form.get("title", "").strip()
     time_of_day = request.form.get("time_of_day", "").strip()
     days = request.form.getlist("days")
-
     if not title or not time_of_day:
         flash("Routine title and time are required.", "warning")
         return redirect(url_for("routine_page"))
-
     routines.append(
         {
             "id": next(_id_counter),
