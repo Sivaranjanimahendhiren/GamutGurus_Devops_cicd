@@ -1,6 +1,12 @@
+import os
+import sys
 import re
 import pytest
-from app import app  # clean import at the top
+
+# Ensure project root is in sys.path (works in CI and locally)
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from app import app  # noqa: E402
 
 
 @pytest.fixture()
