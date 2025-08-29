@@ -1,10 +1,9 @@
 pipeline {
   agent any
   environment {
-    // 🔹 Change these for YOUR project
     DOCKER_IMAGE = "sivaranjanimahendhiren/gamutgurus_todo_app"
     DEPLOY_USER  = "ec2-user"
-    DEPLOY_HOST  = "15.206.174.90"   // your EC2 public IP
+    DEPLOY_HOST  = "65.0.179.188"
   }
   options { timestamps() }
 
@@ -21,7 +20,6 @@ pipeline {
           . .venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          # Run lint + tests
           flake8 || true
           pytest -q || true
         '''
